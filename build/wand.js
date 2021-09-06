@@ -6,64 +6,80 @@ function setCoordinate(icon, left, top, opacity) {
     icon.style.setProperty("top", top + "px");
     icon.style.setProperty("opacity", "" + opacity);
 }
+function toRadians(angle) {
+    return angle * (Math.PI / 180);
+}
 function ShootIcon(_a) {
-    var angle = _a.angle, iconSrc = _a.iconSrc, xCord = _a.xCord, yCord = _a.yCord, offset = _a.offset, jump = _a.jump, speed = _a.speed, initialOpacity = _a.initialOpacity, awakePercentage = _a.awakePercentage;
+    var angle = _a.angle, iconSrc = _a.iconSrc, xCord = _a.xCord, yCord = _a.yCord, offset = _a.offset, jump = _a.jump, speed = _a.speed, initialOpacity = _a.initialOpacity, awakePercentage = _a.awakePercentage, finalOpacity = _a.finalOpacity;
     var icon = document.createElement("img");
     icon.setAttribute("src", iconSrc);
     icon.setAttribute("width", "16");
     icon.setAttribute("height", "16");
     icon.style.setProperty("position", "fixed");
-    var top = yCord, left = xCord, opacity = initialOpacity, deltaOpacity = jump / (awakePercentage * 0.01 * yCord);
+    var top = yCord, left = xCord, opacity = initialOpacity, deltaOpacity = (jump * (initialOpacity - finalOpacity)) / (awakePercentage * 0.01 * yCord);
     setCoordinate(icon, left, top, opacity);
     icon.style.setProperty("transition", "left " + speed + "ms, top " + speed + "ms, opacity " + speed + "ms ease");
     document.body.appendChild(icon);
-    var timeout;
+    // let timeout: number;
     function removeIcon() {
         icon.remove();
-        clearInterval(timeout);
+        // clearInterval(timeout)
     }
-    timeout = setInterval(function () {
+    // timeout = setInterval(
+    var handleMovement = function () {
         if (top < 0 || top > window.innerHeight || left < 0 || left > window.innerWidth) {
             removeIcon();
+            return;
         }
-        var newTop = jump * Math.sin(angle) + top, newLeft = ((newTop - top) / Math.tan(angle)) + left + (offset * (offset % 2 ? -1 : 1));
+        var newTop = jump * Math.sin(toRadians(angle)) + top, newLeft = ((newTop - top) / Math.tan(toRadians(angle))) + left + offset;
         top = newTop;
         left = newLeft;
         opacity = Math.max(opacity - deltaOpacity, 0);
         if (opacity <= 0) {
             removeIcon();
+            return;
         }
         setCoordinate(icon, left, top, opacity);
-    }, speed);
+        window.requestAnimationFrame(handleMovement);
+    };
+    window.requestAnimationFrame(handleMovement);
+    // , speed)
 }
 function Wand(_a) {
-    var targetSelector = _a.targetSelector, iconSrc = _a.iconSrc;
+    var targetSelector = _a.targetSelector, iconSrc = _a.iconSrc, event = _a.event;
     var target = document.querySelector(targetSelector);
     if (target == null)
         return;
-    var ctr = 0;
-    var timeout = null;
-    document.body.onmousemove = function () {
-        if (timeout) {
+    function handleShoot() {
+        if (target === null) {
             return;
         }
-        timeout = setTimeout(function () {
-            var count = 10;
-            while (count--) {
-                ShootIcon({
-                    direction: DIRECTIONS[0],
-                    iconSrc: iconSrc,
-                    offset: count / 3,
-                    xCord: target.offsetLeft,
-                    yCord: target.offsetTop,
-                    angle: 10,
-                    jump: 4,
-                    speed: 30,
-                    initialOpacity: 1,
-                    awakePercentage: 50
-                });
-            }
-            timeout = null;
-        }, 700);
+        var count = 1;
+        while (count--) {
+            ShootIcon({
+                direction: DIRECTIONS[0],
+                iconSrc: iconSrc,
+                offset: count / 3,
+                xCord: target.offsetLeft,
+                yCord: target.offsetTop,
+                angle: 270,
+                jump: 4,
+                speed: 30,
+                initialOpacity: 0,
+                finalOpacity: 1,
+                awakePercentage: 50
+            });
+        }
+    }
+    function start() {
+        handleShoot();
+    }
+    if (event) {
+        target.addEventListener(event, function () {
+            start();
+        });
+    }
+    return {
+        start: start
     };
 }

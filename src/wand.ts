@@ -11,6 +11,7 @@ type ShootIconParams = {
   jump: number,
   speed: number,
   initialOpacity: number,
+  finalOpacity: number,
   awakePercentage: number
 }
 
@@ -21,6 +22,10 @@ function setCoordinate(icon: HTMLElement, left: number, top: number, opacity: nu
   icon.style.setProperty("opacity", `${opacity}`);
 }
 
+function toRadians (angle: number) {
+  return angle * (Math.PI / 180);
+}
+
 function ShootIcon({
   angle,
   iconSrc,
@@ -29,7 +34,7 @@ function ShootIcon({
   offset,
   jump,
   speed,
-  initialOpacity, awakePercentage
+  initialOpacity, awakePercentage, finalOpacity
 }: ShootIconParams){
   const icon: HTMLElement = document.createElement("img");
 
@@ -38,27 +43,28 @@ function ShootIcon({
   icon.setAttribute("height", "16");
   icon.style.setProperty("position", "fixed")
 
-  let top: number = yCord, left: number = xCord, opacity = initialOpacity, deltaOpacity = jump / (awakePercentage * 0.01 * yCord);
+  let top: number = yCord, left: number = xCord, opacity = initialOpacity, deltaOpacity = (jump * (initialOpacity - finalOpacity)) / (awakePercentage * 0.01 * yCord);
 
   setCoordinate(icon, left, top, opacity);
   icon.style.setProperty("transition", `left ${speed}ms, top ${speed}ms, opacity ${speed}ms ease`)
 
   document.body.appendChild(icon);
 
-  let timeout: number;
+  // let timeout: number;
 
   function removeIcon() {
     icon.remove();
-    clearInterval(timeout)
+    // clearInterval(timeout)
   }
 
-  timeout = setInterval(() => {
+  // timeout = setInterval(
+  const handleMovement = () => {
     if(top < 0 || top > window.innerHeight || left < 0 || left > window.innerWidth) {
       removeIcon();
+      return;
     }
 
-    const newTop: number = jump * Math.sin(angle) + top,
-      newLeft:number = (( newTop - top ) / Math.tan(angle)) + left + (offset * (offset % 2 ? -1 : 1));
+    const newTop: number = jump * Math.sin(toRadians(angle)) + top, newLeft:number = (( newTop - top ) / Math.tan(toRadians(angle))) + left + offset;
 
     top = newTop;
     left = newLeft;
@@ -66,42 +72,55 @@ function ShootIcon({
 
     if(opacity <= 0){
       removeIcon();
-    }
-
-    setCoordinate(icon, left, top, opacity);
-  }, speed)
-}
-
-function Wand({ targetSelector, iconSrc }: { targetSelector: string, iconSrc: string }) {
-  const target: HTMLElement | null = document.querySelector(targetSelector);
-
-  if(target == null) return;
-  let ctr = 0;
-
-  let timeout: number | null = null;
-
-  document.body.onmousemove = function () {
-    if(timeout){
       return;
     }
 
-    timeout = setTimeout(() => {
-      let count = 10;
-      while(count--){
-        ShootIcon({
-          direction: DIRECTIONS[0],
-          iconSrc,
-          offset: count / 3,
-          xCord: target.offsetLeft,
-          yCord: target.offsetTop,
-          angle: 10,
-          jump: 4,
-          speed: 30,
-          initialOpacity: 1,
-          awakePercentage: 50
-        })
-      }
-      timeout = null;
-    }, 700)
+    setCoordinate(icon, left, top, opacity);
+    window.requestAnimationFrame(handleMovement);
+  }
+  window.requestAnimationFrame(handleMovement);
+  // , speed)
+}
+
+function Wand({ targetSelector, iconSrc, event }: { targetSelector: string, iconSrc: string, event: string | undefined }) {
+  const target: HTMLElement | null = document.querySelector(targetSelector);
+
+  if(target == null) return;
+
+  function handleShoot() {
+    if(target === null){
+      return;
+    }
+
+    let count = 1;
+    while(count--){
+      ShootIcon({
+        direction: DIRECTIONS[0],
+        iconSrc,
+        offset: count / 3,
+        xCord: target.offsetLeft,
+        yCord: target.offsetTop,
+        angle: 270,
+        jump: 4,
+        speed: 30,
+        initialOpacity: 0,
+        finalOpacity: 1,
+        awakePercentage: 50
+      })
+    }
+  }
+
+  function start() {
+    handleShoot();
+  }
+
+  if(event){
+    target.addEventListener(event, function () {
+      start();
+    });
+  }
+
+  return {
+    start
   }
 }
